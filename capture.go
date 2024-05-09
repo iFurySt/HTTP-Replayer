@@ -78,11 +78,18 @@ func Capture(args Argument) {
 	}
 	fmt.Printf("Capturing HTTP traffic on interface %s...\nApply BPF filter: %s\n", args.Nic, filter)
 
+	rate := Rate{Number: 0, Unit: RateUnitSecond}
+	if args.Rate != nil {
+		rate = *args.Rate
+	}
+	limiter := NewLimiter(rate)
+	initTransport()
+
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		if appLayer := packet.ApplicationLayer(); appLayer != nil {
 			payload := appLayer.Payload()
-			err = processPayload(args, payload)
+			err = processPayload(args, payload, &limiter)
 			if err != nil {
 				log.Println("Failed to process payload:", err)
 			}
@@ -90,7 +97,7 @@ func Capture(args Argument) {
 	}
 }
 
-func processPayload(args Argument, payload []byte) error {
+func processPayload(args Argument, payload []byte, limiter *RateLimiter) error {
 	if !isHTTPPacket(payload) {
 		return nil
 	}
@@ -109,6 +116,10 @@ func processPayload(args Argument, payload []byte) error {
 	}
 
 	if !isHTTPHeadersMatch(req.Header, args) {
+		return nil
+	}
+
+	if !limiter.Allow() {
 		return nil
 	}
 

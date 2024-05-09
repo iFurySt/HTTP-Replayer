@@ -8,9 +8,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func Replay(args Argument, httpMethod string, bodyBytes []byte, headers http.Header, targetURL url.URL) {
@@ -30,8 +32,10 @@ func Replay(args Argument, httpMethod string, bodyBytes []byte, headers http.Hea
 			}
 		}
 
-		// FIXME: use the http.Transport to reuse connections
-		client := &http.Client{}
+		client := &http.Client{
+			Transport: tr,
+			Timeout:   3 * time.Second, // TODO: extract the timeout to the command line arguments
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Failed to send request to %s: %s\n", targetURL.String(), err)
@@ -40,5 +44,21 @@ func Replay(args Argument, httpMethod string, bodyBytes []byte, headers http.Hea
 		_ = resp.Body.Close()
 
 		log.Printf("---> Send to %s, response status: %s\n", targetURL.String(), resp.Status)
+	}
+}
+
+var (
+	tr *http.Transport
+)
+
+func initTransport() {
+	// TODO: extract the parameters to the command line arguments
+	tr = &http.Transport{
+		MaxIdleConns:        100,
+		MaxConnsPerHost:     50,
+		MaxIdleConnsPerHost: 50,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
 }

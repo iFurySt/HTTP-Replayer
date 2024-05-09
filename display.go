@@ -32,7 +32,11 @@ func display(args Argument) {
 		headerStr = headerStr[:len(headerStr)-2]
 	}
 	fmt.Println("\tHeaders:", getValue(headerStr))
-	fmt.Println("\tRate:", getValue(fmt.Sprintf("%d/%s", args.Rate.Number, args.Rate.Unit)))
+	if args.Rate == nil {
+		fmt.Println("\tRate: No limit")
+	} else {
+		fmt.Println("\tRate:", fmt.Sprintf("%d/%s", args.Rate.Number, args.Rate.Unit))
+	}
 	fmt.Println("\tNetwork interface:", getValue(args.Nic))
 	fmt.Println("\tPorts:", getValue(strings.Trim(strings.Join(strings.Fields(fmt.Sprint(args.Ports)), ", "), "[]")))
 	fmt.Println()
